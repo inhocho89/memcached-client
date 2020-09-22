@@ -55,6 +55,8 @@ netaddr raddr, master;
 int wtype;
 // RPC service level objective (in us)
 int slo;
+// maximum key index
+int max_key_idx;
 
 std::ofstream json_out;
 std::ofstream csv_out;
@@ -65,7 +67,6 @@ constexpr uint64_t kWarmUpTime = 2000000;
 constexpr uint64_t kExperimentTime = 4000000;
 // RTT
 constexpr uint64_t kRTT = 10;
-constexpr int STRICT_SLO = 165;
 
 std::vector<double> offered_loads;
 double offered_load;
@@ -170,6 +171,7 @@ class NetBarrier {
       BUG_ON(c->WriteFull(&wtype, sizeof(wtype)) <= 0);
       BUG_ON(c->WriteFull(&total_agents, sizeof(total_agents)) <= 0);
       BUG_ON(c->WriteFull(&slo, sizeof(slo)) <= 0);
+      BUG_ON(c->WriteFull(&max_key_idx, sizeof(max_key_idx)) <= 0);
       BUG_ON(c->WriteFull(&offered_load, sizeof(offered_load)) <= 0);
       for (size_t j = 0; j < npara; j++) {
         rt::TcpConn *c = aggregator_->Accept();
@@ -189,6 +191,7 @@ class NetBarrier {
     BUG_ON(c->ReadFull(&wtype, sizeof(wtype)) <= 0);
     BUG_ON(c->ReadFull(&total_agents, sizeof(total_agents)) <= 0);
     BUG_ON(c->ReadFull(&slo, sizeof(slo)) <= 0);
+    BUG_ON(c->ReadFull(&max_key_idx, sizeof(max_key_idx)) <= 0);
     BUG_ON(c->ReadFull(&offered_load, sizeof(offered_load)) <= 0);
     for (size_t i = 0; i < npara; i++) {
       auto c = rt::TcpConn::Dial({0, 0}, {master.ip, kBarrierPort + 1});
@@ -441,7 +444,7 @@ std::vector<work_unit> ClientWorker(
       continue;
 
     timings[i] = microtime();
-    std::string key = std::to_string(rand() % 100000);
+    std::string key = std::to_string(w[i].hash % max_key_idx);
     std::string value = std::string("abcdef");
     if (wtype == 1) { // SET
       buflen = ConstructMemcachedSetReq(buf, 4096, i, key.c_str(), key.length(),
@@ -566,10 +569,10 @@ std::vector<work_unit> RunExperiment(
     // Remove requests that did not complete.
     v.erase(std::remove_if(v.begin(), v.end(),
 			   [](const work_unit &s) {return (s.duration_us == 0 ||
-						s.start_us < kWarmUpTime);}),
+						(s.start_us + s.duration_us) < kWarmUpTime);}),
 	    v.end());
     slo_success = std::count_if(v.begin(), v.end(), [](const work_unit &s) {
-				return s.duration_us < STRICT_SLO;});
+				return s.duration_us < slo;});
     throughput = static_cast<double>(v.size()) / elapsed_ * 1000000;
 
     good_resps += slo_success;
@@ -875,19 +878,12 @@ void ClientHandler(void *arg) {
   else
     wname = std::string("unknown");
 
-  std::string json_fname = std::string("outputs/memcached_") + wname +
-	  std::string("_nconn_") + std::to_string((int)(threads * total_agents)) +
-	  std::string(".json");
-  std::string csv_fname = std::string("outputs/memcached_") + wname +
-	  std::string("_nconn_") + std::to_string((int)(threads * total_agents)) +
-	  std::string(".csv");
-
-  json_out.open(json_fname);
-  csv_out.open(csv_fname);
+  json_out.open("output.json");
+  csv_out.open("output.csv", std::fstream::out | std::fstream::app);
   json_out << "[";
 
   /* Print Header */
-  PrintHeader(csv_out);
+//  PrintHeader(csv_out);
   PrintHeader(std::cout);
 
   for (double i : offered_loads) {
@@ -947,9 +943,10 @@ int main(int argc, char *argv[]) {
     return -EINVAL;
   }
 
-  if (argc < 10) {
+  if (argc < 11) {
     std::cerr << "usage: [alg] [cfg_file] client [#threads] [remote_ip]"
-	    << " [SET|GET|USR] [slo] [npeers] [offered_load]" << std::endl;
+	    << " [SET|GET|USR] [max_key_idx] [slo] [npeers] [offered_load]"
+	    << std::endl;
     return -EINVAL;
   }
 
@@ -971,9 +968,10 @@ int main(int argc, char *argv[]) {
     return -EINVAL;
   }
 
-  slo = std::stoi(argv[7], nullptr, 0);
-  total_agents += std::stoi(argv[8], nullptr, 0);
-  offered_load = std::stod(argv[9], nullptr);
+  max_key_idx = std::stoi(argv[7], nullptr, 0);
+  slo = std::stoi(argv[8], nullptr, 0);
+  total_agents += std::stoi(argv[9], nullptr, 0);
+  offered_load = std::stod(argv[10], nullptr);
 
   ret = runtime_init(argv[2], ClientHandler, NULL);
   if (ret) {
