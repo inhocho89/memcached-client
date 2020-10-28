@@ -409,7 +409,7 @@ std::vector<work_unit> ClientWorker(
     struct MemcachedHdr *hdr;
 
     while (true) {
-      ssize_t ret = c->Recv(resp, 4096);
+      ssize_t ret = c->Recv(resp, 4096, nullptr);
 
       hdr = reinterpret_cast<struct MemcachedHdr *>(resp);
       ntoh(hdr);
