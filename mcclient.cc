@@ -38,6 +38,7 @@ std::time_t timex;
 barrier_t barrier;
 
 constexpr uint16_t kBarrierPort = 41;
+constexpr int kValueLen = 5;
 
 const struct crpc_ops *crpc_ops;
 const struct srpc_ops *srpc_ops;
@@ -385,6 +386,16 @@ std::vector<work_unit> GenerateWork(Arrival a, double cur_us,
   return w;
 }
 
+void GenerateRandomString(char *buffer, int len, uint64_t hash) {
+  int i;
+  uint64_t tmp_hash = hash;
+
+  for(i = 0; i < len; ++i) {
+    buffer[i] = (tmp_hash % 94) + 33;
+    tmp_hash = (tmp_hash >> 1);
+  }
+}
+
 std::vector<work_unit> ClientWorker(
     rpc::RpcClient *c, rt::WaitGroup *starter, rt::WaitGroup *starter2,
     std::function<std::vector<work_unit>()> wf) {
@@ -431,6 +442,7 @@ std::vector<work_unit> ClientWorker(
   char buf[4096];
   struct MemcachedHdr *hdr;
   int buflen;
+  char value[kValueLen];
 
   for (unsigned int i = 0; i < wsize; ++i) {
     barrier();
@@ -445,18 +457,21 @@ std::vector<work_unit> ClientWorker(
 
     timings[i] = microtime();
     std::string key = std::to_string(w[i].hash % max_key_idx);
-    std::string value = std::string("abcdef");
+
     if (wtype == 1) { // SET
+      GenerateRandomString(value, kValueLen, w[i].hash);
       buflen = ConstructMemcachedSetReq(buf, 4096, i, key.c_str(), key.length(),
-					value.c_str(), value.length());
+					value, kValueLen);
     } else if (wtype == 2) { // GET
       buflen = ConstructMemcachedGetReq(buf, 4096, i, key.c_str(), key.length());
     } else if (wtype == 3) {
-      if (rand() % 1000 < 998)
+      if (w[i].hash % 1000 < 998) {
         buflen = ConstructMemcachedGetReq(buf, 4096, i, key.c_str(), key.length());
-      else
+      } else {
+	GenerateRandomString(value, kValueLen, w[i].hash);
         buflen = ConstructMemcachedSetReq(buf, 4096, i, key.c_str(), key.length(),
-					  value.c_str(), value.length());
+					  value, kValueLen);
+      }
     } else {
       panic("unsupported workload type\n");
     }
