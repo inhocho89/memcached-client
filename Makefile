@@ -4,9 +4,6 @@ include $(ROOT_PATH)/build/shared.mk
 
 BW_LIBS = $(ROOT_PATH)/breakwater/libbw.a
 
-lib_src = util.cc
-lib_obj = $(lib_src:.cc=.o)
-
 mcclient_src = mcclient.cc
 mcclient_obj = $(mcclient_src:.cc=.o)
 
@@ -21,12 +18,12 @@ RUNTIME_LIBS := $(RUNTIME_LIBS) $(BW_LIBS) -lnuma
 # must be first
 all: mcclient
 
-mcclient: $(lib_obj) $(mcclient_obj) $(librt_libs) $(libbw_libs) $(RUNTIME_DEPS)
-	$(LDXX) -o $@ $(LDFLAGS) $(lib_obj) $(mcclient_obj) \
-	$(librt_libs) $(libbw_libs) $(RUNTIME_LIBS)
+mcclient: $(mcclient_obj) $(librt_libs) $(libbw_libs) $(RUNTIME_DEPS)
+	$(LDXX) -o $@ $(LDFLAGS) $(mcclient_obj) $(librt_libs) \
+	$(libbw_libs) $(RUNTIME_LIBS)
 
 # general build rules for all targets
-src = $(lib_src) $(mcclient_src)
+src = $(mcclient_src)
 obj = $(src:.cc=.o)
 dep = $(obj:.o=.d)
 
