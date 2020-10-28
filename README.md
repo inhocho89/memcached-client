@@ -4,7 +4,7 @@
 ```
 $ sudo ./mcclient [overload_control] [shenango_config] client [# threads] [server_ip] [workload] [max_key_index] [slo] [npeers] [offered_load]
 ```
-**[overload\_control]:** currently supports `breakwater` (for Breakwater), `dagor` (for DAGOR), `seda` (for SEDA), and `nocontrol` (for no overload control).\
+**[overload\_control]:** `breakwater` (for Breakwater), `dagor` (for DAGOR), `seda` (for SEDA), and `nocontrol` (for no overload control)\
 **[shenango\_config]:** location of the Shenango configuration file\
 **[\# threads]:** the number of threads generating load\
 **[server\_ip]:** Memcached server IP\
@@ -18,7 +18,7 @@ $ sudo ./mcclient [overload_control] [shenango_config] client [# threads] [serve
 ```
 $ sudo ./mcclient [overload_control] [shenango_config] agent [client_ip]
 ```
-**[overload\_control]:** currently supports `breakwater` (for Breakwater), `dagor` (for DAGOR), `seda` (for SEDA), and `nocontrol` (for no overload control).\
+**[overload\_control]:** `breakwater` (for Breakwater), `dagor` (for DAGOR), `seda` (for SEDA), and `nocontrol` (for no overload control)\
 **[shenango\_config]:** location of the Shenango configuration file\
 **[client\_ip]:** client IP to connect to
 
