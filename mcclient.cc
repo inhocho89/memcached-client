@@ -409,7 +409,7 @@ std::vector<work_unit> ClientWorker(
     struct MemcachedHdr *hdr;
 
     while (true) {
-      ssize_t ret = c->Recv(resp, 4096, 0, nullptr);
+      ssize_t ret = c->Recv(resp, 4096, nullptr);
 
       hdr = reinterpret_cast<struct MemcachedHdr *>(resp);
       ntoh(hdr);
@@ -528,11 +528,11 @@ std::vector<work_unit> RunExperiment(
   timex = std::time(nullptr);
   auto start = steady_clock::now();
   barrier();
-//  sstat_raw s1, s2;
+  sstat_raw s1, s2;
   shstat_raw sh1, sh2;
 
   if (!b || b->IsLeader()) {
-//    s1 = ReadRPCSStat();
+    s1 = ReadRPCSStat();
     sh1 = ReadShenangoStat();
   }
 
@@ -545,7 +545,7 @@ std::vector<work_unit> RunExperiment(
   barrier();
 
   if (!b || b->IsLeader()) {
-//    s2 = ReadRPCSStat();
+    s2 = ReadRPCSStat();
     sh2 = ReadShenangoStat();
   }
 
@@ -613,19 +613,19 @@ std::vector<work_unit> RunExperiment(
   }
 
   if ((!b || b->IsLeader()) && ss) {
-    uint64_t idle = 0; // s2.idle - s1.idle;
-    uint64_t busy = 0; // s2.busy - s1.busy;
-    ss->cpu_usage = 0;
-//    ss->cpu_usage = static_cast<double>(busy) / static_cast<double>(idle + busy);
+    uint64_t idle = s2.idle - s1.idle;
+    uint64_t busy = s2.busy - s1.busy;
+    ss->cpu_usage = 0; // not supported yet
+    // ss->cpu_usage = static_cast<double>(busy) / static_cast<double>(idle + busy);
 
-//    ss->cpu_usage = (ss->cpu_usage - 1 / static_cast<double>(s1.max_cores)) /
-//	    (static_cast<double>(s1.num_cores) / static_cast<double>(s1.max_cores));
+    // ss->cpu_usage = (ss->cpu_usage - 1 / static_cast<double>(s1.max_cores)) /
+// 	    (static_cast<double>(s1.num_cores) / static_cast<double>(s1.max_cores));
 
-    uint64_t winu_rx_pkts = 0; //s2.winu_rx - s1.winu_rx;
-    uint64_t winu_tx_pkts = 0; //s2.winu_tx - s1.winu_tx;
-    uint64_t win_tx_wins = 0; //s2.win_tx - s1.win_tx;
-    uint64_t req_rx_pkts = 0; //s2.req_rx - s1.req_rx;
-    uint64_t resp_tx_pkts = 0; //s2.resp_tx - s1.resp_tx;
+    uint64_t winu_rx_pkts = s2.winu_rx - s1.winu_rx;
+    uint64_t winu_tx_pkts = s2.winu_tx - s1.winu_tx;
+    uint64_t win_tx_wins = s2.win_tx - s1.win_tx;
+    uint64_t req_rx_pkts = s2.req_rx - s1.req_rx;
+    uint64_t resp_tx_pkts = s2.resp_tx - s1.resp_tx;
     ss->winu_rx_pps = static_cast<double>(winu_rx_pkts) / elapsed_ * 1000000;
     ss->winu_tx_pps = static_cast<double>(winu_tx_pkts) / elapsed_ * 1000000;
     ss->win_tx_wps = static_cast<double>(win_tx_wins) / elapsed_ * 1000000;
